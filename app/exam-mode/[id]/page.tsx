@@ -70,10 +70,8 @@ const Exam = () => {
   useEffect(() => {
     if (quizIdFromUrl && !questions?.length) {
       fetchQuiz();
-    }
-
-    if (quizIdFromUrl && quizId && quizIdFromUrl !== quizId) {
-      setErrorMessage('Unable to load conversation.');
+    } else if (quizIdFromUrl && quizId && quizIdFromUrl !== quizId) {
+      setErrorMessage('Unable to load quiz.');
       setShowError(true);
       setIsLoading(false);
 
@@ -146,7 +144,6 @@ const Exam = () => {
   return (
     <div className='min-h-screen bg-white px-4 md:py-12'>
       <div className='max-w-4xl mx-auto space-y-8'>
-        {/* ✅ Show error message */}
         {showError && !currentQuestion && (
           <div className='bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl'>
             <div className='font-semibold'>
@@ -154,11 +151,8 @@ const Exam = () => {
             </div>
           </div>
         )}
-
-        {/* ✅ Show quiz only if there's a current question */}
         {!isLoading && currentQuestion && (
           <>
-            {/* Question Block */}
             <div className='mb-6'>
               <h2 className='text-2xl font-semibold text-gray-800 leading-relaxed mb-2'>
                 {currentQuestion.question}
@@ -168,7 +162,6 @@ const Exam = () => {
                 answered
               </div>
 
-              {/* Options */}
               <div className='space-y-4'>
                 {currentQuestion.options.map((option, index) => (
                   <button
@@ -190,7 +183,6 @@ const Exam = () => {
               </div>
             </div>
 
-            {/* Explanation */}
             {hasAnswered && (
               <div className='bg-primary-50 border-l-4 border-primary-500 rounded-md p-6'>
                 <div className='flex items-start gap-3'>
@@ -207,7 +199,6 @@ const Exam = () => {
               </div>
             )}
 
-            {/* Navigation Buttons */}
             <div className='flex justify-between items-center'>
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
@@ -228,7 +219,6 @@ const Exam = () => {
               </button>
             </div>
 
-            {/* Question Numbers Grid */}
             <div className='p-6 border border-gray-100'>
               <div className='grid grid-cols-5 md:grid-cols-10 gap-3'>
                 {questions.map((_, i) => {
@@ -257,7 +247,6 @@ const Exam = () => {
               </div>
             </div>
 
-            {/* Submit Button */}
             <div className='text-center'>
               <button
                 className='px-8 py-4 bg-primary-500 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed'

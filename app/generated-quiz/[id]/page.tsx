@@ -10,96 +10,177 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useQuizStore } from '../../store/useQuizStore';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 
 const GeneratedQuiz = () => {
   const router = useRouter();
+  const params = useParams();
+  const { setQuizData } = useQuizStore();
+  const quizIdFromUrl = params?.id as string;
   const { quizId, documentName, questions } = useQuizStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const fetchQuiz = async () => {
+    setIsLoading(true);
+
+    try {
+      const res = await fetch(`http://localhost:3333/quiz/${quizIdFromUrl}`);
+
+      if (res.ok) {
+        const data = await res.json();
+        const {
+          id: quizId,
+          document: { documentName },
+          questions,
+        } = data;
+
+        setQuizData(quizId, documentName, questions);
+      } else {
+        setIsLoading(false);
+        setShowError(true);
+        setErrorMessage('Quiz not found');
+
+        setTimeout(() => {
+          setShowError(false);
+          router.replace('/');
+        }, 1500);
+      }
+    } catch (error) {
+      setShowError(true);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Quiz not found or failed to load.'
+      );
+
+      setTimeout(() => {
+        setShowError(false);
+        router.replace('/');
+      }, 1500);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (quizIdFromUrl && !questions?.length) {
+      fetchQuiz();
+    } else if (quizIdFromUrl && quizId && quizIdFromUrl !== quizId) {
+      setErrorMessage('Unable to load quiz.');
+      setShowError(true);
+      setIsLoading(false);
+
+      const timeout = setTimeout(() => {
+        setShowError(false);
+        router.replace('/');
+      }, 1500);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [quizIdFromUrl, quizId, questions?.length, router]);
 
   console.log('this is the document name in aanother page sir', questions);
+
+  if (isLoading && !showError) {
+    return (
+      <div className='min-h-screen flex items-center justify-center bg-white'>
+        <div className='text-gray-500 text-lg font-semibold animate-pulse'>
+          Loading quiz...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className='min-h-screen bg-white flex justify-center px-4 md:py-32 py-20'>
       <div className='w-full max-w-4xl space-y-10'>
-        {/* PDF Info */}
-        <div className='flex items-center justify-center'>
-          <div className='flex items-center gap-4 bg-gray-100 px-6 py-4 rounded-2xl shadow border border-gray-200'>
-            <FileText className='w-7 h-7 text-gray-800' />
-            <div className='flex'>
-              <span className='font-semibold text-xl text-gray-800'>
-                {documentName}
-              </span>
+        {showError && !questions && (
+          <div className='bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl'>
+            <div className='font-semibold'>
+              {errorMessage || 'Something went wrong. Please try again.'}
             </div>
           </div>
-        </div>
-
-        {/* Heading */}
-        <h1 className='text-3xl md:text-4xl font-bold text-center text-gray-800'>
-          Your Questions Are Ready!
-        </h1>
-
-        {/* Mode Selection Cards */}
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-          {/* Exam Mode */}
-          <div className='group bg-gradient-to-tr from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all p-6 rounded-2xl shadow-md border border-green-200'>
-            <div className='flex items-center gap-4 mb-4'>
-              <div className='bg-green-200 text-green-700 p-3 rounded-xl'>
-                <ShieldCheck className='w-8 h-8' />
+        )}
+        {showError && (!questions || questions.length === 0) && (
+          <>
+            <div className='flex items-center justify-center'>
+              <div className='flex items-center gap-4 bg-gray-100 px-6 py-4 rounded-2xl shadow border border-gray-200'>
+                <FileText className='w-7 h-7 text-gray-800' />
+                <div className='flex'>
+                  <span className='font-semibold text-xl text-gray-800'>
+                    {documentName}
+                  </span>
+                </div>
               </div>
-              <h2 className='text-2xl font-semibold text-gray-800'>
-                Exam Mode
-              </h2>
             </div>
-            <p className='text-sm text-gray-600 mb-4'>
-              Simulates real exam conditions. No hints or answers till the end.
-              Timed and strict.
-            </p>
-            <button
-              onClick={() => router.push(`/exam-mode/${quizId}`)}
-              className='w-full bg-green-600 hover:bg-green-700 transition text-white py-3 px-5 rounded-xl text-lg font-medium cursor-pointer'
-            >
-              Start Exam
-            </button>
-          </div>
 
-          {/* Study Mode */}
-          <div className='group bg-gradient-to-tr from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all p-6 rounded-2xl shadow-md border border-blue-200'>
-            <div className='flex items-center gap-4 mb-4'>
-              <div className='bg-blue-200 text-blue-700 p-3 rounded-xl'>
-                <BookOpen className='w-8 h-8' />
+            <h1 className='text-3xl md:text-4xl font-bold text-center text-gray-800'>
+              Your Questions Are Ready!
+            </h1>
+
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+              <div className='group bg-gradient-to-tr from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all p-6 rounded-2xl shadow-md border border-green-200'>
+                <div className='flex items-center gap-4 mb-4'>
+                  <div className='bg-green-200 text-green-700 p-3 rounded-xl'>
+                    <ShieldCheck className='w-8 h-8' />
+                  </div>
+                  <h2 className='text-2xl font-semibold text-gray-800'>
+                    Exam Mode
+                  </h2>
+                </div>
+                <p className='text-sm text-gray-600 mb-4'>
+                  Simulates real exam conditions. No hints or answers till the
+                  end. Timed and strict.
+                </p>
+                <button
+                  onClick={() => router.push(`/exam-mode/${quizId}`)}
+                  className='w-full bg-green-600 hover:bg-green-700 transition text-white py-3 px-5 rounded-xl text-lg font-medium cursor-pointer'
+                >
+                  Start Exam
+                </button>
               </div>
-              <h2 className='text-2xl font-semibold text-gray-800'>
-                Study Mode
-              </h2>
-            </div>
-            <p className='text-sm text-gray-600 mb-4'>
-              Practice at your own pace. See hints and answers immediately after
-              each question.
-            </p>
-            <button
-              onClick={() => router.push(`/study-mode/${quizId}`)}
-              className='w-full bg-blue-600 hover:bg-blue-700 transition text-white py-3 px-5 rounded-xl text-lg font-medium cursor-pointer'
-            >
-              Start Study
-            </button>
-          </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className='flex flex-col md:flex-row items-center justify-center gap-4'>
-          {/* Download Button */}
-          <button className='w-full md:w-auto flex items-center justify-center gap-2 bg-primary-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-primary-700 transition'>
-            <Download className='w-5 h-5' />
-            Download Questions
-          </button>
-
-          {/* Shareable Link (Locked) */}
-          <div className='w-full md:w-auto flex items-center justify-between border border-gray-200 rounded-xl px-5 py-3 bg-gray-50 gap-3 shadow-sm'>
-            <div className='flex items-center gap-2 text-gray-500 text-sm'>
-              <LinkIcon className='w-4 h-4' />
-              Shareable Link
+              <div className='group bg-gradient-to-tr from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all p-6 rounded-2xl shadow-md border border-blue-200'>
+                <div className='flex items-center gap-4 mb-4'>
+                  <div className='bg-blue-200 text-blue-700 p-3 rounded-xl'>
+                    <BookOpen className='w-8 h-8' />
+                  </div>
+                  <h2 className='text-2xl font-semibold text-gray-800'>
+                    Study Mode
+                  </h2>
+                </div>
+                <p className='text-sm text-gray-600 mb-4'>
+                  Practice at your own pace. See hints and answers immediately
+                  after each question.
+                </p>
+                <button
+                  onClick={() => router.push(`/study-mode/${quizId}`)}
+                  className='w-full bg-blue-600 hover:bg-blue-700 transition text-white py-3 px-5 rounded-xl text-lg font-medium cursor-pointer'
+                >
+                  Start Study
+                </button>
+              </div>
             </div>
-            <Lock className='w-4 h-4 text-gray-400' />
-          </div>
-        </div>
+
+            <div className='flex flex-col md:flex-row items-center justify-center gap-4'>
+              <button className='w-full md:w-auto flex items-center justify-center gap-2 bg-primary-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-primary-700 transition'>
+                <Download className='w-5 h-5' />
+                Download Questions
+              </button>
+
+              <div className='w-full md:w-auto flex items-center justify-between border border-gray-200 rounded-xl px-5 py-3 bg-gray-50 gap-3 shadow-sm'>
+                <div className='flex items-center gap-2 text-gray-500 text-sm'>
+                  <LinkIcon className='w-4 h-4' />
+                  Shareable Link
+                </div>
+                <Lock className='w-4 h-4 text-gray-400' />
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

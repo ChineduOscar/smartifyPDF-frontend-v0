@@ -12,6 +12,10 @@ import { useRouter } from 'next/navigation';
 import { useQuizStore } from '../../store/useQuizStore';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { downloadQuizFile } from '@/app/utils/downloadQuizFIle';
+import { Menu, MenuItem } from '@mui/material';
+import PdfIcon from '@/app/assets/pdfIcon';
+import DocxIcon from '@/app/assets/docxIcon';
 
 const GeneratedQuiz = () => {
   const router = useRouter();
@@ -21,6 +25,8 @@ const GeneratedQuiz = () => {
   const { quizId, documentName, questions } = useQuizStore();
   const [isLoading, setIsLoading] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
   const [errorMessage, setErrorMessage] = useState('');
 
   const fetchQuiz = async () => {
@@ -82,6 +88,20 @@ const GeneratedQuiz = () => {
     }
   }, [quizIdFromUrl, quizId, questions?.length, router]);
 
+  const handleDownloadClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleDownloadClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleQuizDownload = async (format: 'pdf' | 'docx') => {
+    handleDownloadClose();
+    if (quizId) {
+      await downloadQuizFile(quizId, format);
+    }
+  };
   console.log('this is the document name in aanother page sir', questions);
 
   if (isLoading && !showError) {
@@ -95,32 +115,30 @@ const GeneratedQuiz = () => {
   }
 
   return (
-    <div className='min-h-screen bg-white flex justify-center px-4 md:py-32 py-20'>
+    <div className='min-h-screen bg-white flex justify-center px-4 md:py-32'>
       <div className='w-full max-w-4xl space-y-10'>
-        {showError && !questions && (
+        {showError && (!questions || questions.length === 0) && (
           <div className='bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl'>
             <div className='font-semibold'>
               {errorMessage || 'Something went wrong. Please try again.'}
             </div>
           </div>
         )}
-        {showError && (!questions || questions.length === 0) && (
+        {!isLoading && questions && (
           <>
             <div className='flex items-center justify-center'>
               <div className='flex items-center gap-4 bg-gray-100 px-6 py-4 rounded-2xl shadow border border-gray-200'>
                 <FileText className='w-7 h-7 text-gray-800' />
                 <div className='flex'>
-                  <span className='font-semibold text-xl text-gray-800'>
+                  <span className='font-semibold md:text-xl text-gray-800'>
                     {documentName}
                   </span>
                 </div>
               </div>
             </div>
-
             <h1 className='text-3xl md:text-4xl font-bold text-center text-gray-800'>
               Your Questions Are Ready!
             </h1>
-
             <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
               <div className='group bg-gradient-to-tr from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all p-6 rounded-2xl shadow-md border border-green-200'>
                 <div className='flex items-center gap-4 mb-4'>
@@ -164,13 +182,72 @@ const GeneratedQuiz = () => {
                 </button>
               </div>
             </div>
+            <div className='flex items-center justify-center gap-4'>
+              {/* Tailwind Button with MUI Menu */}
+              <div>
+                <button
+                  onClick={handleDownloadClick}
+                  className='w-full md:w-auto flex items-center justify-center cursor-pointer gap-2 bg-primary-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-primary-700 transition-all duration-200'
+                >
+                  <Download className='w-5 h-5' />
+                  Download
+                </button>
 
-            <div className='flex flex-col md:flex-row items-center justify-center gap-4'>
-              <button className='w-full md:w-auto flex items-center justify-center gap-2 bg-primary-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-primary-700 transition'>
-                <Download className='w-5 h-5' />
-                Download Questions
-              </button>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={open}
+                  onClose={handleDownloadClose}
+                  PaperProps={{
+                    sx: {
+                      borderRadius: '12px',
+                      minWidth: '200px',
+                      padding: '8px 0',
+                      boxShadow:
+                        '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                      border: '1px solid rgb(229 231 235)',
+                    },
+                  }}
+                  transformOrigin={{ horizontal: 'left', vertical: 'top' }}
+                  anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+                  sx={{ marginTop: '6px' }}
+                >
+                  <MenuItem
+                    onClick={() => handleQuizDownload('pdf')}
+                    sx={{
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      color: 'rgb(55 65 81)',
+                      '&:hover': {
+                        backgroundColor: 'rgb(249 250 251)',
+                      },
+                    }}
+                  >
+                    <div className='flex items-center w-full'>
+                      <PdfIcon />
+                      Download as PDF
+                    </div>
+                  </MenuItem>
 
+                  <MenuItem
+                    onClick={() => handleQuizDownload('docx')}
+                    sx={{
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      color: 'rgb(55 65 81)',
+                      '&:hover': {
+                        backgroundColor: 'rgb(249 250 251)',
+                      },
+                    }}
+                  >
+                    <div className='flex items-center w-full'>
+                      <DocxIcon />
+                      Download as DOCX
+                    </div>
+                  </MenuItem>
+                </Menu>
+              </div>
+
+              {/* Shareable Link Section */}
               <div className='w-full md:w-auto flex items-center justify-between border border-gray-200 rounded-xl px-5 py-3 bg-gray-50 gap-3 shadow-sm'>
                 <div className='flex items-center gap-2 text-gray-500 text-sm'>
                   <LinkIcon className='w-4 h-4' />

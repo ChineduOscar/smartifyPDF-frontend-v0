@@ -3,28 +3,31 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useQuizStore } from '../../store/useQuizStore';
-
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 
 const Study = () => {
   const params = useParams();
   const router = useRouter();
-  const { setQuizData } = useQuizStore();
+  const {
+    setQuizData,
+    quizId,
+    documentName,
+    questions,
+    selectedOptions,
+    setSelectedOption,
+    setCompleted,
+  } = useQuizStore();
   const quizIdFromUrl = params?.id as string;
-  const { quizId, documentName, questions } = useQuizStore();
   const [currentPage, setCurrentPage] = useState(1);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const [selectedOptions, setSelectedOptions] = useState<
-    Record<number, number>
-  >({});
-
   console.log(questions);
   const currentQuestion = questions[currentPage - 1];
   const totalQuestions = questions.length;
+
   const fetchQuiz = async () => {
     setIsLoading(true);
 
@@ -85,11 +88,16 @@ const Study = () => {
   }, [quizIdFromUrl, quizId, questions?.length, router]);
 
   const handleOptionClick = (optionIndex: number) => {
-    setSelectedOptions({ ...selectedOptions, [currentPage]: optionIndex });
+    setSelectedOption(currentPage, optionIndex);
   };
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalQuestions) setCurrentPage(page);
+  };
+
+  const handleSubmitExam = () => {
+    setCompleted(true);
+    router.push(`/generated-quiz/${quizIdFromUrl}/results`);
   };
 
   const getOptionClass = (optionIndex: number) => {
@@ -131,6 +139,8 @@ const Study = () => {
   };
 
   const hasAnswered = selectedOptions[currentPage] !== undefined;
+  const totalAnswered = Object.keys(selectedOptions).length;
+
   if (isLoading && !showError) {
     return (
       <div className='min-h-screen flex items-center justify-center bg-white'>
@@ -158,8 +168,7 @@ const Study = () => {
                 {currentQuestion.question}
               </h2>
               <div className='text-sm text-gray-500 font-medium mb-8'>
-                {Object.keys(selectedOptions).length} / {totalQuestions}{' '}
-                answered
+                {totalAnswered} / {totalQuestions} answered
               </div>
 
               <div className='space-y-4'>
@@ -168,8 +177,9 @@ const Study = () => {
                     key={index}
                     onClick={() => handleOptionClick(index)}
                     disabled={hasAnswered}
-                    className={`w-full text-left border-2 px-6 py-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-between
-                      ${getOptionClass(index)}`}
+                    className={`w-full text-left border-2 px-6 py-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-between ${getOptionClass(
+                      index
+                    )}`}
                   >
                     <div className='flex items-center'>
                       <span className='w-8 h-8 rounded-full border-2 mr-4 flex items-center justify-center text-sm font-bold bg-white text-gray-600'>
@@ -231,14 +241,13 @@ const Study = () => {
                     <button
                       key={i}
                       onClick={() => handlePageChange(questionNumber)}
-                      className={`aspect-square rounded-lg font-bold text-sm transition-all duration-200 hover:scale-105
-                        ${
-                          isCurrent
-                            ? 'bg-primary-500 text-white shadow-lg'
-                            : isAnswered
-                            ? 'bg-green-100 text-green-800 border-2 border-green-300'
-                            : 'bg-gray-100 text-gray-600 border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50'
-                        }`}
+                      className={`aspect-square rounded-lg font-bold text-sm transition-all duration-200 hover:scale-105 ${
+                        isCurrent
+                          ? 'bg-primary-500 text-white shadow-lg'
+                          : isAnswered
+                          ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                          : 'bg-gray-100 text-gray-600 border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50'
+                      }`}
                     >
                       {questionNumber}
                     </button>
@@ -249,11 +258,11 @@ const Study = () => {
 
             <div className='text-center'>
               <button
+                onClick={handleSubmitExam}
                 className='px-8 py-4 bg-primary-500 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed'
-                disabled={Object.keys(selectedOptions).length < totalQuestions}
+                disabled={totalAnswered < totalQuestions}
               >
-                Submit Exam ({Object.keys(selectedOptions).length}/
-                {totalQuestions})
+                Submit Exam ({totalAnswered}/{totalQuestions})
               </button>
             </div>
           </>

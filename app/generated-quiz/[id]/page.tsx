@@ -102,7 +102,6 @@ const GeneratedQuiz = () => {
       await downloadQuizFile(quizId, format);
     }
   };
-  console.log('this is the document name in aanother page sir', questions);
 
   if (isLoading && !showError) {
     return (

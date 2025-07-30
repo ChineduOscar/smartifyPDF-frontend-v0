@@ -1,30 +1,104 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { CheckCircle, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useQuizStore } from '../../store/useQuizStore';
-
+import { useExamStore } from '@/app/store/useExamStore';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 
-const Exam = () => {
+const Study = () => {
   const params = useParams();
   const router = useRouter();
-  const { setQuizData } = useQuizStore();
+  const { setQuizData, quizId, documentName, questions } = useQuizStore();
+  const {
+    selectedOptions,
+    currentPage,
+    isTimedExam,
+    timeLimit,
+    timeUnit,
+    examStartTime,
+    setSelectedOption,
+    setCurrentPage,
+    setCompleted,
+    setExamStartTime,
+    resetExam,
+  } = useExamStore();
+
   const quizIdFromUrl = params?.id as string;
-  const { quizId, documentName, questions } = useQuizStore();
-  const [currentPage, setCurrentPage] = useState(1);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const [selectedOptions, setSelectedOptions] = useState<
-    Record<number, number>
-  >({});
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [examStarted, setExamStarted] = useState(false);
 
   console.log(questions);
   const currentQuestion = questions[currentPage - 1];
   const totalQuestions = questions.length;
+
+  // Calculate time remaining based on start time
+  const calculateTimeRemaining = useCallback(() => {
+    if (!isTimedExam || !examStartTime) return 0;
+
+    const totalTimeInSeconds =
+      timeUnit === 'hours' ? timeLimit * 3600 : timeLimit * 60;
+    const elapsedTime = Math.floor((Date.now() - examStartTime) / 1000);
+    const remaining = Math.max(0, totalTimeInSeconds - elapsedTime);
+
+    return remaining;
+  }, [isTimedExam, examStartTime, timeLimit, timeUnit]);
+
+  // Initialize timer when exam starts
+  useEffect(() => {
+    if (questions.length > 0 && !examStartTime) {
+      const startTime = Date.now();
+      setExamStartTime(startTime);
+      setTimeRemaining(calculateTimeRemaining());
+      setExamStarted(true);
+    } else if (examStartTime) {
+      // Exam already started, calculate current time remaining
+      setTimeRemaining(calculateTimeRemaining());
+      setExamStarted(true);
+    }
+  }, [
+    questions.length,
+    examStartTime,
+    setExamStartTime,
+    calculateTimeRemaining,
+  ]);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (!isTimedExam || !examStarted || !examStartTime) return;
+
+    const timer = setInterval(() => {
+      const remaining = calculateTimeRemaining();
+      setTimeRemaining(remaining);
+
+      if (remaining <= 0) {
+        // Time's up - auto submit
+        handleSubmitExam();
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isTimedExam, examStarted, examStartTime, calculateTimeRemaining]);
+
+  // Format time display
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs
+        .toString()
+        .padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const fetchQuiz = async () => {
     setIsLoading(true);
 
@@ -85,11 +159,35 @@ const Exam = () => {
   }, [quizIdFromUrl, quizId, questions?.length, router]);
 
   const handleOptionClick = (optionIndex: number) => {
-    setSelectedOptions({ ...selectedOptions, [currentPage]: optionIndex });
+    setSelectedOption(currentPage, optionIndex);
   };
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalQuestions) setCurrentPage(page);
+  };
+
+  const handleSubmitExam = () => {
+    setCompleted(true);
+    const submissionPayload = {
+      quizId: quizIdFromUrl,
+      mode: 'exam',
+      answers: Object.entries(selectedOptions).map(
+        ([questionNumber, selectedIndex]) => {
+          const question = questions[parseInt(questionNumber) - 1];
+
+          return {
+            questionId: question.id,
+            selectedOptionIndex: selectedIndex,
+            correctOptionIndex: question.correctAnswer,
+          };
+        }
+      ),
+      submittedAt: new Date().toISOString(),
+    };
+
+    console.log(submissionPayload);
+    resetExam();
+    // router.push(`/generated-quiz/${quizIdFromUrl}/exam-results`);
   };
 
   const getOptionClass = (optionIndex: number) => {
@@ -98,39 +196,21 @@ const Exam = () => {
       return 'bg-white text-gray-700 border-gray-200 hover:border-primary-300 hover:bg-primary-50';
     }
 
-    if (optionIndex === currentQuestion.correctAnswer) {
+    if (optionIndex === selectedOption) {
       return 'bg-primary-500 text-white border-primary-500';
-    }
-
-    if (
-      optionIndex === selectedOption &&
-      optionIndex !== currentQuestion.correctAnswer
-    ) {
-      return 'bg-red-500 text-white border-red-500';
     }
 
     return 'bg-gray-100 text-gray-500 border-gray-200';
   };
 
-  const getOptionIcon = (optionIndex: number) => {
-    const selectedOption = selectedOptions[currentPage];
-    if (selectedOption === undefined) return null;
+  const hasAnswered = selectedOptions[currentPage] !== undefined;
+  const totalAnswered = Object.keys(selectedOptions).length;
 
-    if (optionIndex === currentQuestion.correctAnswer) {
-      return <CheckCircle className='w-5 h-5' />;
-    }
-
-    if (
-      optionIndex === selectedOption &&
-      optionIndex !== currentQuestion.correctAnswer
-    ) {
-      return <X className='w-5 h-5' />;
-    }
-
-    return null;
+  // Time warning colors
+  const getTimeWarningClass = () => {
+    return timeRemaining <= 60 ? 'text-red-500 animate-pulse' : 'text-red-500';
   };
 
-  const hasAnswered = selectedOptions[currentPage] !== undefined;
   if (isLoading && !showError) {
     return (
       <div className='min-h-screen flex items-center justify-center bg-white'>
@@ -142,7 +222,7 @@ const Exam = () => {
   }
 
   return (
-    <div className='min-h-screen bg-white px-4 md:py-12'>
+    <div className='min-h-screen bg-white px-4 md:py-12 relative'>
       <div className='max-w-4xl mx-auto space-y-8'>
         {showError && !currentQuestion && (
           <div className='bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl'>
@@ -151,15 +231,18 @@ const Exam = () => {
             </div>
           </div>
         )}
+
         {!isLoading && currentQuestion && (
           <>
             <div className='mb-6'>
               <h2 className='text-2xl font-semibold text-gray-800 leading-relaxed mb-2'>
-                {currentQuestion.question}
+                Question {currentPage} of {totalQuestions}
               </h2>
+              <h3 className='text-xl text-gray-700 leading-relaxed mb-4'>
+                {currentQuestion.question}
+              </h3>
               <div className='text-sm text-gray-500 font-medium mb-8'>
-                {Object.keys(selectedOptions).length} / {totalQuestions}{' '}
-                answered
+                {totalAnswered} / {totalQuestions} answered
               </div>
 
               <div className='space-y-4'>
@@ -167,9 +250,9 @@ const Exam = () => {
                   <button
                     key={index}
                     onClick={() => handleOptionClick(index)}
-                    disabled={hasAnswered}
-                    className={`w-full text-left border-2 px-6 py-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-between
-                      ${getOptionClass(index)}`}
+                    className={`w-full text-left border-2 px-6 py-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-between ${getOptionClass(
+                      index
+                    )}`}
                   >
                     <div className='flex items-center'>
                       <span className='w-8 h-8 rounded-full border-2 mr-4 flex items-center justify-center text-sm font-bold bg-white text-gray-600'>
@@ -177,27 +260,10 @@ const Exam = () => {
                       </span>
                       {option}
                     </div>
-                    {getOptionIcon(index)}
                   </button>
                 ))}
               </div>
             </div>
-
-            {hasAnswered && (
-              <div className='bg-primary-50 border-l-4 border-primary-500 rounded-md p-6'>
-                <div className='flex items-start gap-3'>
-                  <CheckCircle className='w-6 h-6 text-primary-600 mt-0.5 flex-shrink-0' />
-                  <div>
-                    <h3 className='font-semibold text-primary-800 mb-2'>
-                      Explanation:
-                    </h3>
-                    <p className='text-primary-700 leading-relaxed'>
-                      {currentQuestion.explanation}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className='flex justify-between items-center'>
               <button
@@ -219,7 +285,7 @@ const Exam = () => {
               </button>
             </div>
 
-            <div className='p-6 border border-gray-100'>
+            <div className='p-6 border border-gray-100 rounded-xl'>
               <div className='grid grid-cols-5 md:grid-cols-10 gap-3'>
                 {questions.map((_, i) => {
                   const questionNumber = i + 1;
@@ -231,14 +297,13 @@ const Exam = () => {
                     <button
                       key={i}
                       onClick={() => handlePageChange(questionNumber)}
-                      className={`aspect-square rounded-lg font-bold text-sm transition-all duration-200 hover:scale-105
-                        ${
-                          isCurrent
-                            ? 'bg-primary-500 text-white shadow-lg'
-                            : isAnswered
-                            ? 'bg-green-100 text-green-800 border-2 border-green-300'
-                            : 'bg-gray-100 text-gray-600 border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50'
-                        }`}
+                      className={`aspect-square rounded-lg font-bold text-sm transition-all duration-200 hover:scale-105 ${
+                        isCurrent
+                          ? 'bg-primary-500 text-white shadow-lg'
+                          : isAnswered
+                          ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                          : 'bg-gray-100 text-gray-600 border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50'
+                      }`}
                     >
                       {questionNumber}
                     </button>
@@ -249,18 +314,39 @@ const Exam = () => {
 
             <div className='text-center'>
               <button
-                className='px-8 py-4 bg-primary-500 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed'
-                disabled={Object.keys(selectedOptions).length < totalQuestions}
+                onClick={handleSubmitExam}
+                className='px-8 py-4 bg-primary-500 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+                // disabled={totalAnswered < totalQuestions}
               >
-                Submit Exam ({Object.keys(selectedOptions).length}/
-                {totalQuestions})
+                Submit Exam ({totalAnswered}/{totalQuestions})
               </button>
+              {totalAnswered < totalQuestions && (
+                <p className='text-sm text-gray-500 mt-2'>
+                  Please answer all questions before submitting
+                </p>
+              )}
             </div>
           </>
+        )}
+
+        {/* Floating Timer */}
+        {!isLoading && currentQuestion && isTimedExam && (
+          <div className='absolute top-6 left-6 z-50 bg-white border-2 border-gray-200 rounded-xl p-3 shadow-lg'>
+            <div className='flex items-center gap-2'>
+              <Clock
+                className={`w-4 h-4 md:w-6 md:h-6 ${getTimeWarningClass()}`}
+              />
+              <div
+                className={`text-base md:text-2xl font-bold ${getTimeWarningClass()}`}
+              >
+                {formatTime(timeRemaining)}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
   );
 };
 
-export default Exam;
+export default Study;

@@ -3,31 +3,34 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useQuizStore } from '../../store/useQuizStore';
+import { useStudyStore } from '@/app/store/useStudyStore';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
+import ConfirmSubmitDialog from '@/app/components/dialogs/confirmSubmitDialog';
 
-const Study = () => {
+const StudyMode = () => {
   const params = useParams();
   const router = useRouter();
+  const { setQuizData, quizId, questions } = useQuizStore();
   const {
-    setQuizData,
-    quizId,
-    documentName,
-    questions,
     selectedOptions,
+    currentPage,
     setSelectedOption,
     setCompleted,
-  } = useQuizStore();
+    setCurrentPage,
+    resetStudy,
+  } = useStudyStore();
+
   const quizIdFromUrl = params?.id as string;
-  const [currentPage, setCurrentPage] = useState(1);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [unansweredCount, setUnansweredCount] = useState(0);
 
-  console.log(questions);
   const currentQuestion = questions[currentPage - 1];
   const totalQuestions = questions.length;
-
+  console.log(questions);
   const fetchQuiz = async () => {
     setIsLoading(true);
 
@@ -96,8 +99,73 @@ const Study = () => {
   };
 
   const handleSubmitExam = () => {
+    const totalAnswered = Object.keys(selectedOptions).length;
+
+    if (totalAnswered === 0) {
+      setErrorMessage('Please answer at least one question before submitting.');
+      setShowError(true);
+      setTimeout(() => {
+        setShowError(false);
+      }, 2000);
+      return;
+    }
+
+    const unanswered = totalQuestions - totalAnswered;
+
+    if (unanswered > 0) {
+      setUnansweredCount(unanswered);
+      setShowConfirmDialog(true);
+    } else {
+      handleFinalSubmit();
+    }
+  };
+
+  const handleFinalSubmit = async () => {
     setCompleted(true);
-    router.push(`/generated-quiz/${quizIdFromUrl}/results`);
+    const submissionPayload = {
+      quizId: quizIdFromUrl,
+      mode: 'study',
+      answers: Object.entries(selectedOptions).map(
+        ([questionNumber, selectedIndex]) => {
+          const question = questions[parseInt(questionNumber) - 1];
+
+          return {
+            questionId: question.id,
+            selectedOptionIndex: selectedIndex,
+            correctOptionIndex: question.correctAnswer,
+          };
+        }
+      ),
+      submittedAt: new Date().toISOString(),
+    };
+
+    console.log(submissionPayload);
+    try {
+      const res = await fetch(`http://localhost:3333/quiz/submit-quiz`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submissionPayload),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to submit quiz result');
+      }
+      const data = await res.json();
+      console.log(data);
+
+      resetStudy();
+      router.push(`/generated-quiz/${quizIdFromUrl}/study-results`);
+    } catch (error) {
+      console.log(error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Failed to submit result. Please try again.'
+      );
+    }
+    // router.push(`/generated-quiz/${quizIdFromUrl}/study-results`);
   };
 
   const getOptionClass = (optionIndex: number) => {
@@ -154,13 +222,14 @@ const Study = () => {
   return (
     <div className='min-h-screen bg-white px-4 md:py-12'>
       <div className='max-w-4xl mx-auto space-y-8'>
-        {showError && !currentQuestion && (
-          <div className='bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl'>
-            <div className='font-semibold'>
+        {showError && (
+          <div className='fixed top-5 left-1/2 transform -translate-x-1/2 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl shadow-md z-50'>
+            <div className='font-semibold text-center'>
               {errorMessage || 'Something went wrong. Please try again.'}
             </div>
           </div>
         )}
+
         {!isLoading && currentQuestion && (
           <>
             <div className='mb-6'>
@@ -259,8 +328,7 @@ const Study = () => {
             <div className='text-center'>
               <button
                 onClick={handleSubmitExam}
-                className='px-8 py-4 bg-primary-500 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed'
-                disabled={totalAnswered < totalQuestions}
+                className='px-8 py-4 bg-primary-500 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
               >
                 Submit Exam ({totalAnswered}/{totalQuestions})
               </button>
@@ -268,8 +336,18 @@ const Study = () => {
           </>
         )}
       </div>
+
+      <ConfirmSubmitDialog
+        open={showConfirmDialog}
+        unansweredCount={unansweredCount}
+        onCancel={() => setShowConfirmDialog(false)}
+        onConfirm={() => {
+          setShowConfirmDialog(false);
+          handleFinalSubmit();
+        }}
+      />
     </div>
   );
 };
 
-export default Study;
+export default StudyMode;

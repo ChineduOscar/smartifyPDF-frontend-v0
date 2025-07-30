@@ -3,42 +3,80 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuizStore } from '../../../store/useQuizStore';
+import { useStudyStore } from '@/app/store/useStudyStore';
 import {
   CheckCircle,
   X,
   Download,
-  Share2,
   Trophy,
-  BarChart,
   RotateCcw,
   Home,
 } from 'lucide-react';
 import { downloadQuizResult } from '@/app/utils/downloadQuizResult';
 
-const QuizResults = () => {
+const StudyResults = () => {
   const params = useParams();
   const router = useRouter();
   const quizIdFromUrl = params?.id as string;
-  const {
-    quizId,
-    documentName,
-    questions,
-    selectedOptions,
-    isCompleted,
-    getScore,
-    clearQuizData,
-  } = useQuizStore();
+  const { clearQuizData } = useQuizStore();
+  const { resetStudy } = useStudyStore();
 
   const [showSummary, setShowSummary] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [resultData, setResultData] = useState<null | {
+    score: number;
+    percentage: number;
+    totalQuestions: number;
+    correctAnswers: number;
+    incorrectAnswers: number;
+    questions: any[];
+  }>(null);
+
+  const [fullQuestions, setFullQuestions] = useState<any[]>([]);
 
   useEffect(() => {
-    // Redirect if quiz not completed or doesn't match
-    if (!isCompleted || quizId !== quizIdFromUrl) {
-      router.replace(`/generated-quiz/${quizIdFromUrl}`);
-    }
-  }, [isCompleted, quizId, quizIdFromUrl, router]);
+    const fetchResult = async () => {
+      console.log(quizIdFromUrl);
+      try {
+        // Fetch quiz results
+        const resultRes = await fetch(
+          `http://localhost:3333/quiz/${quizIdFromUrl}/results?mode=study`
+        );
+        if (!resultRes.ok) throw new Error('Failed to fetch result');
+        const resultData = await resultRes.json();
 
-  if (!isCompleted || quizId !== quizIdFromUrl) {
+        // Fetch full quiz data to get question details
+        const quizRes = await fetch(
+          `http://localhost:3333/quiz/${quizIdFromUrl}`
+        );
+        if (!quizRes.ok) throw new Error('Failed to fetch quiz data');
+        const quizData = await quizRes.json();
+
+        console.log('Result Data:', resultData);
+        console.log('Quiz Data:', quizData);
+
+        setResultData({
+          score: resultData.score,
+          percentage: resultData.percentage,
+          totalQuestions: resultData.totalQuestions,
+          correctAnswers: resultData.correctAnswers,
+          incorrectAnswers: resultData.incorrectAnswers,
+          questions: resultData.questions || [],
+        });
+
+        setFullQuestions(quizData.questions || []);
+      } catch (err) {
+        console.error(err);
+        router.push(`/generated-quiz/${quizIdFromUrl}`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResult();
+  }, [quizIdFromUrl, router]);
+
+  if (isLoading || !resultData) {
     return (
       <div className='min-h-screen flex items-center justify-center bg-white'>
         <div className='text-gray-500 text-lg font-semibold animate-pulse'>
@@ -48,7 +86,14 @@ const QuizResults = () => {
     );
   }
 
-  const { correct, total, percentage } = getScore();
+  const {
+    score,
+    percentage,
+    totalQuestions,
+    correctAnswers,
+    incorrectAnswers,
+    questions,
+  } = resultData;
 
   const getScoreColor = () => {
     if (percentage >= 80) return 'text-primary-600';
@@ -64,21 +109,23 @@ const QuizResults = () => {
 
   const handleDownloadResults = async () => {
     await downloadQuizResult({
-      documentName,
-      score: correct,
-      total,
+      documentName: 'Quiz Results',
+      score: correctAnswers,
+      total: totalQuestions,
       percentage,
-      userName: 'Chinedu Nadozie',
+      userName: 'User',
     });
   };
 
   const handleRetakeQuiz = () => {
     clearQuizData();
+    resetStudy();
     router.push(`/generated-quiz/${quizIdFromUrl}`);
   };
 
   const handleGoHome = () => {
     clearQuizData();
+    resetStudy();
     router.push('/');
   };
 
@@ -97,7 +144,7 @@ const QuizResults = () => {
           </div>
           <h1 className='text-4xl font-bold text-gray-800'>Congratulations!</h1>
           <p className='text-xl text-gray-600'>
-            You have completed the quiz: <strong>{documentName}</strong>
+            You have completed the quiz successfully!
           </p>
         </div>
 
@@ -106,11 +153,12 @@ const QuizResults = () => {
           <div className='text-center space-y-4'>
             <h2 className='text-2xl font-semibold text-gray-800'>Your Score</h2>
             <div className={`text-6xl font-bold ${getScoreColor()}`}>
-              {percentage}%
+              {Math.round(percentage)}%
             </div>
             <div className='text-xl text-gray-700'>
-              <span className='font-semibold'>{correct}</span> out of{' '}
-              <span className='font-semibold'>{total}</span> questions correct
+              <span className='font-semibold'>{correctAnswers}</span> out of{' '}
+              <span className='font-semibold'>{totalQuestions}</span> questions
+              correct
             </div>
             <div className='w-full bg-gray-200 rounded-full h-4 mt-4'>
               <div
@@ -138,23 +186,30 @@ const QuizResults = () => {
           </button>
           <button
             onClick={() => setShowSummary(!showSummary)}
-            className='flex items-center gap-2 px-6 py-3 text-sm md:text-base rounded-xl font-semibold text-white bg-gradient-to-r  from-indigo-500 to-primary-500 hover:from-primary-600 hover:to-indigo-700 transition-shadow shadow-md hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer'
+            className='flex items-center gap-2 px-6 py-3 text-sm md:text-base rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-500 to-primary-500 hover:from-primary-600 hover:to-indigo-700 transition-shadow shadow-md hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer'
           >
             {showSummary ? 'Hide' : 'Show'} Summary
           </button>
         </div>
 
         {/* Question Summary */}
-        {showSummary && (
+        {showSummary && fullQuestions && fullQuestions.length > 0 && (
           <div className='bg-white rounded-2xl shadow-lg md:p-8 space-y-6'>
             <h3 className='text-2xl font-bold text-gray-800 text-center'>
               Quiz Summary
             </h3>
             <div className='space-y-6'>
-              {questions.map((question, index) => {
-                const questionNumber = index + 1;
-                const selectedOption = selectedOptions[questionNumber];
-                const isCorrect = selectedOption === question.correctAnswer;
+              {fullQuestions.map((question, index) => {
+                // Find the corresponding result for this question
+                const questionResult = questions.find(
+                  (q) => q.questionId === question.id
+                );
+                const selectedOption = questionResult
+                  ? questionResult.selectedOptionIndex
+                  : null;
+                const isCorrect = questionResult
+                  ? questionResult.isCorrect
+                  : false;
 
                 return (
                   <div
@@ -173,7 +228,7 @@ const QuizResults = () => {
                       )}
                       <div className='flex-1'>
                         <h4 className='font-semibold text-gray-800 mb-2'>
-                          Question {questionNumber}: {question.question}
+                          Question {index + 1}: {question.question}
                         </h4>
 
                         <div className='space-y-2 mb-4'>
@@ -221,14 +276,24 @@ const QuizResults = () => {
                           })}
                         </div>
 
-                        <div className='bg-gray-100 rounded-lg p-4'>
-                          <h5 className='font-semibold text-gray-800 mb-2'>
-                            Explanation:
-                          </h5>
-                          <p className='text-gray-700'>
-                            {question.explanation}
-                          </p>
-                        </div>
+                        {selectedOption === null && (
+                          <div className='bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4'>
+                            <p className='text-yellow-800 text-sm font-medium'>
+                              ⚠️ No answer provided for this question
+                            </p>
+                          </div>
+                        )}
+
+                        {question.explanation && (
+                          <div className='bg-gray-100 rounded-lg p-4'>
+                            <h5 className='font-semibold text-gray-800 mb-2'>
+                              Explanation:
+                            </h5>
+                            <p className='text-gray-700'>
+                              {question.explanation}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -260,4 +325,4 @@ const QuizResults = () => {
   );
 };
 
-export default QuizResults;
+export default StudyResults;

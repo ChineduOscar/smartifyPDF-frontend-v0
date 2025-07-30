@@ -11,7 +11,7 @@ interface QuizSettings {
 
 const SmartifyHomePage: React.FC = () => {
   const router = useRouter();
-  const { setQuizData } = useQuizStore();
+  const { setQuizData, clearQuizData } = useQuizStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
@@ -52,6 +52,7 @@ const SmartifyHomePage: React.FC = () => {
     }
 
     setIsGenerating(true);
+    clearQuizData();
 
     try {
       const formData = new FormData();

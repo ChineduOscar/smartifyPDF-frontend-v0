@@ -10,21 +10,27 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useQuizStore } from '../../store/useQuizStore';
+import { useExamStore } from '@/app/store/useExamStore';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { downloadQuizFile } from '@/app/utils/downloadQuizFIle';
 import { Menu, MenuItem } from '@mui/material';
 import PdfIcon from '@/app/assets/pdfIcon';
 import DocxIcon from '@/app/assets/docxIcon';
+import ExamSettingsModal, {
+  ExamSettings,
+} from '@/app/components/dialogs/examSettingsDialog';
 
 const GeneratedQuiz = () => {
   const router = useRouter();
   const params = useParams();
   const { setQuizData } = useQuizStore();
+  const { setExamSettings } = useExamStore();
   const quizIdFromUrl = params?.id as string;
   const { quizId, documentName, questions } = useQuizStore();
   const [isLoading, setIsLoading] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [examModalOpen, setExamModalOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const [errorMessage, setErrorMessage] = useState('');
@@ -103,6 +109,26 @@ const GeneratedQuiz = () => {
     }
   };
 
+  const handleExamModeClick = () => {
+    setExamModalOpen(true);
+  };
+
+  const handleExamStart = (settings: ExamSettings) => {
+    setExamModalOpen(false);
+
+    setExamSettings({
+      isTimedExam: settings.isTimedExam,
+      timeLimit: settings.timeLimit,
+      timeUnit: settings.timeUnit,
+    });
+
+    window.open(`/exam-mode/${quizId}`);
+  };
+
+  const handleCloseExamModal = () => {
+    setExamModalOpen(false);
+  };
+
   if (isLoading && !showError) {
     return (
       <div className='min-h-screen flex items-center justify-center bg-white'>
@@ -153,7 +179,7 @@ const GeneratedQuiz = () => {
                   end. Timed and strict.
                 </p>
                 <button
-                  onClick={() => router.push(`/exam-mode/${quizId}`)}
+                  onClick={handleExamModeClick}
                   className='w-full bg-green-600 hover:bg-green-700 transition text-white py-3 px-5 rounded-xl text-lg font-medium cursor-pointer'
                 >
                   Start Exam
@@ -174,7 +200,7 @@ const GeneratedQuiz = () => {
                   after each question.
                 </p>
                 <button
-                  onClick={() => router.push(`/study-mode/${quizId}`)}
+                  onClick={() => window.open(`/study-mode/${quizId}`, '_blank')}
                   className='w-full bg-blue-600 hover:bg-blue-700 transition text-white py-3 px-5 rounded-xl text-lg font-medium cursor-pointer'
                 >
                   Start Study
@@ -255,6 +281,14 @@ const GeneratedQuiz = () => {
                 <Lock className='w-4 h-4 text-gray-400' />
               </div>
             </div>
+
+            <ExamSettingsModal
+              open={examModalOpen}
+              onClose={handleCloseExamModal}
+              onStartExam={handleExamStart}
+              documentName={documentName || ''}
+              questionCount={questions?.length || 0}
+            />
           </>
         )}
       </div>

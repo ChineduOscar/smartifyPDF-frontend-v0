@@ -4,14 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuizStore } from '../../../store/useQuizStore';
 import { useStudyStore } from '@/app/store/useStudyStore';
-import {
-  CheckCircle,
-  X,
-  Download,
-  Trophy,
-  RotateCcw,
-  Home,
-} from 'lucide-react';
+import { CheckCircle, X, Trophy, RotateCcw, Home } from 'lucide-react';
 import { downloadQuizResult } from '@/app/utils/downloadQuizResult';
 
 const StudyResults = () => {
@@ -45,9 +38,6 @@ const StudyResults = () => {
     blockBackNavigation();
     window.addEventListener('popstate', blockBackNavigation);
 
-    return () => {
-      window.removeEventListener('popstate', blockBackNavigation);
-    };
     const fetchResult = async () => {
       try {
         const resultRes = await fetch(
@@ -74,6 +64,10 @@ const StudyResults = () => {
     };
 
     fetchResult();
+
+    return () => {
+      window.removeEventListener('popstate', blockBackNavigation);
+    };
   }, [quizIdFromUrl, router, clearQuizData, resetStudy]);
 
   if (isLoading || !resultData) {
@@ -104,16 +98,6 @@ const StudyResults = () => {
     if (percentage >= 80) return 'bg-primary-50';
     if (percentage >= 60) return 'bg-yellow-50';
     return 'bg-red-50';
-  };
-
-  const handleDownloadResults = async () => {
-    await downloadQuizResult({
-      documentName: documentName || 'Quiz App',
-      score: correctAnswers,
-      total: totalQuestions,
-      percentage,
-      userName: 'User',
-    });
   };
 
   const handleRetakeQuiz = () => {
@@ -172,13 +156,6 @@ const StudyResults = () => {
 
         {/* Action Buttons */}
         <div className='flex justify-center gap-2 md:gap-4'>
-          {/* <button
-            onClick={handleDownloadResults}
-            className='flex items-center gap-2 px-6 py-3 text-sm md:text-base rounded-xl font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-shadow shadow-md hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-400 cursor-pointer'
-          >
-            <Download className='w-5 h-5' />
-            Download Results
-          </button> */}
           <button
             onClick={() => setShowSummary(!showSummary)}
             className='flex items-center gap-2 px-6 py-3 text-sm md:text-base rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-500 to-primary-500 hover:from-primary-600 hover:to-indigo-700 transition-shadow shadow-md hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer'

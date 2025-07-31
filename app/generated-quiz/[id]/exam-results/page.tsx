@@ -48,10 +48,6 @@ const ExamResults = () => {
     blockBackNavigation();
     window.addEventListener('popstate', blockBackNavigation);
 
-    return () => {
-      window.removeEventListener('popstate', blockBackNavigation);
-    };
-
     const fetchResult = async () => {
       try {
         const resultRes = await fetch(
@@ -82,6 +78,10 @@ const ExamResults = () => {
     };
 
     fetchResult();
+
+    return () => {
+      window.removeEventListener('popstate', blockBackNavigation);
+    };
   }, [quizIdFromUrl, router, clearQuizData, resetExam]);
 
   if (isLoading || !resultData) {

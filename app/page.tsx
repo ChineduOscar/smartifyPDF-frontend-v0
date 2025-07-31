@@ -11,6 +11,8 @@ interface QuizSettings {
 
 const SmartifyHomePage: React.FC = () => {
   const router = useRouter();
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const { setQuizData, clearQuizData } = useQuizStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -47,7 +49,13 @@ const SmartifyHomePage: React.FC = () => {
   };
   const handleGenerateQuiz = async () => {
     if (!selectedFile) {
-      alert('Please upload a PDF file first');
+      setShowError(true);
+      setErrorMessage('Please upload a PDF file first');
+
+      setTimeout(() => {
+        setShowError(false);
+        router.replace('/');
+      }, 1500);
       return;
     }
 
@@ -72,12 +80,24 @@ const SmartifyHomePage: React.FC = () => {
         router.push(`/generated-quiz/${quizData?.id}`);
         console.log('Quiz generation response:', quizData);
       } else {
-        const errorText = await response.text();
-        alert(`Failed to generate quiz: ${errorText}`);
+        setShowError(true);
+        setErrorMessage(
+          'Failed to generate quiz, Please refresh and try again.'
+        );
+
+        setTimeout(() => {
+          setShowError(false);
+          router.replace('/');
+        }, 1500);
       }
     } catch (error) {
-      console.error('Error generating quiz:', error);
-      alert('Something went wrong while generating the quiz.');
+      setShowError(true);
+      setErrorMessage('Failed to generate quiz, Please refresh and try again.');
+
+      setTimeout(() => {
+        setShowError(false);
+        router.replace('/');
+      }, 1500);
     } finally {
       setIsGenerating(false);
     }
@@ -119,6 +139,14 @@ const SmartifyHomePage: React.FC = () => {
 
   return (
     <div className='min-h-screen bg-white flex items-center justify-center px-4 md:py-8'>
+      {showError && (
+        <div className='fixed top-5 left-1/2 transform -translate-x-1/2 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl shadow-md z-50'>
+          <div className='font-semibold text-center'>
+            {errorMessage || 'Something went wrong. Please try again.'}
+          </div>
+        </div>
+      )}
+
       <div className='w-full max-w-4xl'>
         {/* Hero */}
         <div className='text-center mb-6 md:mb-8'>

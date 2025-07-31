@@ -18,7 +18,6 @@ const StudyMode = () => {
     setSelectedOption,
     setCompleted,
     setCurrentPage,
-    resetStudy,
   } = useStudyStore();
 
   const quizIdFromUrl = params?.id as string;
@@ -30,7 +29,6 @@ const StudyMode = () => {
 
   const currentQuestion = questions[currentPage - 1];
   const totalQuestions = questions.length;
-  console.log(questions);
   const fetchQuiz = async () => {
     setIsLoading(true);
 
@@ -125,6 +123,7 @@ const StudyMode = () => {
     const submissionPayload = {
       quizId: quizIdFromUrl,
       mode: 'study',
+      totalQuestions,
       answers: Object.entries(selectedOptions).map(
         ([questionNumber, selectedIndex]) => {
           const question = questions[parseInt(questionNumber) - 1];
@@ -136,10 +135,8 @@ const StudyMode = () => {
           };
         }
       ),
-      submittedAt: new Date().toISOString(),
     };
 
-    console.log(submissionPayload);
     try {
       const res = await fetch(`http://localhost:3333/quiz/submit-quiz`, {
         method: 'POST',
@@ -152,10 +149,6 @@ const StudyMode = () => {
       if (!res.ok) {
         throw new Error('Failed to submit quiz result');
       }
-      const data = await res.json();
-      console.log(data);
-
-      resetStudy();
       router.push(`/generated-quiz/${quizIdFromUrl}/study-results`);
     } catch (error) {
       console.log(error);
@@ -165,7 +158,6 @@ const StudyMode = () => {
           : 'Failed to submit result. Please try again.'
       );
     }
-    // router.push(`/generated-quiz/${quizIdFromUrl}/study-results`);
   };
 
   const getOptionClass = (optionIndex: number) => {

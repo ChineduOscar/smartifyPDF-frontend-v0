@@ -20,6 +20,7 @@ import DocxIcon from '@/app/assets/docxIcon';
 import ExamSettingsModal, {
   ExamSettings,
 } from '@/app/components/dialogs/examSettingsDialog';
+import { useStudyStore } from '@/app/store/useStudyStore';
 
 const GeneratedQuiz = () => {
   const router = useRouter();
@@ -28,6 +29,8 @@ const GeneratedQuiz = () => {
   const { setExamSettings } = useExamStore();
   const quizIdFromUrl = params?.id as string;
   const { quizId, documentName, questions } = useQuizStore();
+  const { examQuizId, setExamQuizId } = useExamStore();
+  const { studyQuizId, setStudyQuizId } = useStudyStore();
   const [isLoading, setIsLoading] = useState(false);
   const [showError, setShowError] = useState(false);
   const [examModalOpen, setExamModalOpen] = useState(false);
@@ -77,6 +80,18 @@ const GeneratedQuiz = () => {
     }
   };
 
+  // This reloads the page when localStorage is updated from another tab.
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'exam-storage' || event.key === 'study-storage') {
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   useEffect(() => {
     if (quizIdFromUrl && !questions?.length) {
       fetchQuiz();
@@ -110,19 +125,44 @@ const GeneratedQuiz = () => {
   };
 
   const handleExamModeClick = () => {
+    if (examQuizId === quizId) {
+      setErrorMessage('You already have an ongoing exam for this quiz.');
+      setShowError(true);
+
+      setTimeout(() => {
+        setShowError(false);
+        setErrorMessage('');
+      }, 3000);
+      return;
+    }
+
     setExamModalOpen(true);
   };
 
   const handleExamStart = (settings: ExamSettings) => {
     setExamModalOpen(false);
-
+    setExamQuizId(quizId);
     setExamSettings({
       isTimedExam: settings.isTimedExam,
       timeLimit: settings.timeLimit,
       timeUnit: settings.timeUnit,
     });
-
     window.open(`/exam-mode/${quizId}`);
+  };
+
+  const handleStudyStart = () => {
+    if (studyQuizId === quizId) {
+      setErrorMessage('You already have an ongoing study for this quiz.');
+      setShowError(true);
+
+      setTimeout(() => {
+        setShowError(false);
+        setErrorMessage('');
+      }, 3000);
+      return;
+    }
+    setStudyQuizId(quizId);
+    window.open(`/study-mode/${quizId}`, '_blank');
   };
 
   const handleCloseExamModal = () => {
@@ -142,7 +182,7 @@ const GeneratedQuiz = () => {
   return (
     <div className='min-h-screen bg-white flex justify-center px-4 md:py-32'>
       <div className='w-full max-w-4xl space-y-10'>
-        {showError && (!questions || questions.length === 0) && (
+        {showError && (
           <div className='bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl'>
             <div className='font-semibold'>
               {errorMessage || 'Something went wrong. Please try again.'}
@@ -200,7 +240,7 @@ const GeneratedQuiz = () => {
                   after each question.
                 </p>
                 <button
-                  onClick={() => window.open(`/study-mode/${quizId}`, '_blank')}
+                  onClick={handleStudyStart}
                   className='w-full bg-blue-600 hover:bg-blue-700 transition text-white py-3 px-5 rounded-xl text-lg font-medium cursor-pointer'
                 >
                   Start Study

@@ -6,11 +6,12 @@ import { useQuizStore } from '../../store/useQuizStore';
 import { useExamStore } from '@/app/store/useExamStore';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
+import ConfirmSubmitDialog from '@/app/components/dialogs/confirmSubmitDialog';
 
-const Study = () => {
+const ExamMode = () => {
   const params = useParams();
   const router = useRouter();
-  const { setQuizData, quizId, documentName, questions } = useQuizStore();
+  const { setQuizData, quizId, questions } = useQuizStore();
   const {
     selectedOptions,
     currentPage,
@@ -22,7 +23,6 @@ const Study = () => {
     setCurrentPage,
     setCompleted,
     setExamStartTime,
-    resetExam,
   } = useExamStore();
 
   const quizIdFromUrl = params?.id as string;
@@ -31,8 +31,10 @@ const Study = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [examStarted, setExamStarted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [unansweredCount, setUnansweredCount] = useState(0);
 
-  console.log(questions);
   const currentQuestion = questions[currentPage - 1];
   const totalQuestions = questions.length;
 
@@ -56,7 +58,6 @@ const Study = () => {
       setTimeRemaining(calculateTimeRemaining());
       setExamStarted(true);
     } else if (examStartTime) {
-      // Exam already started, calculate current time remaining
       setTimeRemaining(calculateTimeRemaining());
       setExamStarted(true);
     }
@@ -76,11 +77,10 @@ const Study = () => {
       setTimeRemaining(remaining);
 
       if (remaining <= 0) {
-        // Time's up - auto submit
-        handleSubmitExam();
+        handleFinalSubmit();
         clearInterval(timer);
       }
-    }, 1000);
+    }, 100);
 
     return () => clearInterval(timer);
   }, [isTimedExam, examStarted, examStartTime, calculateTimeRemaining]);
@@ -167,10 +167,40 @@ const Study = () => {
   };
 
   const handleSubmitExam = () => {
+    const totalAnswered = Object.keys(selectedOptions).length;
+
+    if (totalAnswered === 0) {
+      setErrorMessage('Please answer at least one question before submitting.');
+      setShowError(true);
+      setTimeout(() => {
+        setShowError(false);
+      }, 2000);
+      return;
+    }
+
+    const unanswered = totalQuestions - totalAnswered;
+
+    if (unanswered > 0) {
+      setUnansweredCount(unanswered);
+      setShowConfirmDialog(true);
+    } else {
+      handleFinalSubmit();
+    }
+  };
+
+  const handleFinalSubmit = async () => {
     setCompleted(true);
+    setIsSubmitting(true);
+
+    const timeSpent = examStartTime
+      ? Math.floor((Date.now() - examStartTime) / 1000)
+      : 0;
+
     const submissionPayload = {
       quizId: quizIdFromUrl,
       mode: 'exam',
+      totalQuestions,
+      timeSpent,
       answers: Object.entries(selectedOptions).map(
         ([questionNumber, selectedIndex]) => {
           const question = questions[parseInt(questionNumber) - 1];
@@ -182,12 +212,36 @@ const Study = () => {
           };
         }
       ),
-      submittedAt: new Date().toISOString(),
     };
 
-    console.log(submissionPayload);
-    resetExam();
-    // router.push(`/generated-quiz/${quizIdFromUrl}/exam-results`);
+    try {
+      const res = await fetch(`http://localhost:3333/quiz/submit-quiz`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submissionPayload),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to submit exam result');
+      }
+
+      router.push(`/generated-quiz/${quizIdFromUrl}/exam-results`);
+    } catch (error) {
+      console.log(error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Failed to submit result. Please try again.'
+      );
+      setShowError(true);
+      setIsSubmitting(false);
+
+      setTimeout(() => {
+        setShowError(false);
+      }, 3000);
+    }
   };
 
   const getOptionClass = (optionIndex: number) => {
@@ -203,10 +257,8 @@ const Study = () => {
     return 'bg-gray-100 text-gray-500 border-gray-200';
   };
 
-  const hasAnswered = selectedOptions[currentPage] !== undefined;
   const totalAnswered = Object.keys(selectedOptions).length;
 
-  // Time warning colors
   const getTimeWarningClass = () => {
     return timeRemaining <= 60 ? 'text-red-500 animate-pulse' : 'text-red-500';
   };
@@ -224,9 +276,9 @@ const Study = () => {
   return (
     <div className='min-h-screen bg-white px-4 md:py-12 relative'>
       <div className='max-w-4xl mx-auto space-y-8'>
-        {showError && !currentQuestion && (
-          <div className='bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl'>
-            <div className='font-semibold'>
+        {showError && (
+          <div className='fixed top-5 left-1/2 transform -translate-x-1/2 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl shadow-md z-50'>
+            <div className='font-semibold text-center'>
               {errorMessage || 'Something went wrong. Please try again.'}
             </div>
           </div>
@@ -315,23 +367,18 @@ const Study = () => {
             <div className='text-center'>
               <button
                 onClick={handleSubmitExam}
+                disabled={isSubmitting}
                 className='px-8 py-4 bg-primary-500 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
-                // disabled={totalAnswered < totalQuestions}
               >
                 Submit Exam ({totalAnswered}/{totalQuestions})
               </button>
-              {totalAnswered < totalQuestions && (
-                <p className='text-sm text-gray-500 mt-2'>
-                  Please answer all questions before submitting
-                </p>
-              )}
             </div>
           </>
         )}
 
         {/* Floating Timer */}
         {!isLoading && currentQuestion && isTimedExam && (
-          <div className='absolute top-6 left-6 z-50 bg-white border-2 border-gray-200 rounded-xl p-3 shadow-lg'>
+          <div className='absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-white border-2 border-gray-200 rounded-xl p-3 shadow-lg'>
             <div className='flex items-center gap-2'>
               <Clock
                 className={`w-4 h-4 md:w-6 md:h-6 ${getTimeWarningClass()}`}
@@ -345,8 +392,18 @@ const Study = () => {
           </div>
         )}
       </div>
+
+      <ConfirmSubmitDialog
+        open={showConfirmDialog}
+        unansweredCount={unansweredCount}
+        onCancel={() => setShowConfirmDialog(false)}
+        onConfirm={() => {
+          setShowConfirmDialog(false);
+          handleFinalSubmit();
+        }}
+      />
     </div>
   );
 };
 
-export default Study;
+export default ExamMode;

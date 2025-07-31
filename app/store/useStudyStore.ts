@@ -15,6 +15,8 @@ interface StudyState {
   isCompleted: boolean;
   showCorrectAnswers: boolean;
   currentPage: number;
+  studyQuizId: string | null;
+  setStudyQuizId: (id: string | null) => void;
   setCurrentPage: (page: number) => void;
   setSelectedOption: (questionNumber: number, optionIndex: number) => void;
   setCompleted: (completed: boolean) => void;
@@ -28,7 +30,9 @@ export const useStudyStore = create<StudyState>()(
       isCompleted: false,
       showCorrectAnswers: true,
       currentPage: 1,
+      studyQuizId: null,
 
+      setStudyQuizId: (id) => set({ studyQuizId: id }),
       setCurrentPage: (page) => set({ currentPage: page }),
 
       setSelectedOption: (questionNumber, optionIndex) =>
@@ -47,6 +51,7 @@ export const useStudyStore = create<StudyState>()(
           isCompleted: false,
           showCorrectAnswers: true,
           currentPage: 1,
+          studyQuizId: null,
         }),
     }),
     {
@@ -55,6 +60,7 @@ export const useStudyStore = create<StudyState>()(
         selectedOptions: state.selectedOptions,
         isCompleted: state.isCompleted,
         currentPage: state.currentPage,
+        studyQuizId: state.studyQuizId,
       }),
     }
   )

@@ -30,41 +30,41 @@ const StudyResults = () => {
     correctAnswers: number;
     incorrectAnswers: number;
     questions: any[];
+    documentName?: string;
   }>(null);
 
-  const [fullQuestions, setFullQuestions] = useState<any[]>([]);
-
   useEffect(() => {
+    clearQuizData();
+    resetStudy();
+
+    // Prevent Back Navigation
+    const blockBackNavigation = () => {
+      history.pushState(null, '', location.href);
+    };
+
+    blockBackNavigation();
+    window.addEventListener('popstate', blockBackNavigation);
+
+    return () => {
+      window.removeEventListener('popstate', blockBackNavigation);
+    };
     const fetchResult = async () => {
-      console.log(quizIdFromUrl);
       try {
-        // Fetch quiz results
         const resultRes = await fetch(
           `http://localhost:3333/quiz/${quizIdFromUrl}/results?mode=study`
         );
         if (!resultRes.ok) throw new Error('Failed to fetch result');
-        const resultData = await resultRes.json();
-
-        // Fetch full quiz data to get question details
-        const quizRes = await fetch(
-          `http://localhost:3333/quiz/${quizIdFromUrl}`
-        );
-        if (!quizRes.ok) throw new Error('Failed to fetch quiz data');
-        const quizData = await quizRes.json();
-
-        console.log('Result Data:', resultData);
-        console.log('Quiz Data:', quizData);
+        const data = await resultRes.json();
 
         setResultData({
-          score: resultData.score,
-          percentage: resultData.percentage,
-          totalQuestions: resultData.totalQuestions,
-          correctAnswers: resultData.correctAnswers,
-          incorrectAnswers: resultData.incorrectAnswers,
-          questions: resultData.questions || [],
+          score: data.score,
+          percentage: data.percentage,
+          totalQuestions: data.totalQuestions,
+          correctAnswers: data.correctAnswers,
+          incorrectAnswers: data.incorrectAnswers,
+          questions: data.questions || [],
+          documentName: data.documentName || 'Quiz App',
         });
-
-        setFullQuestions(quizData.questions || []);
       } catch (err) {
         console.error(err);
         router.push(`/generated-quiz/${quizIdFromUrl}`);
@@ -74,7 +74,7 @@ const StudyResults = () => {
     };
 
     fetchResult();
-  }, [quizIdFromUrl, router]);
+  }, [quizIdFromUrl, router, clearQuizData, resetStudy]);
 
   if (isLoading || !resultData) {
     return (
@@ -87,12 +87,11 @@ const StudyResults = () => {
   }
 
   const {
-    score,
     percentage,
     totalQuestions,
     correctAnswers,
-    incorrectAnswers,
     questions,
+    documentName,
   } = resultData;
 
   const getScoreColor = () => {
@@ -109,7 +108,7 @@ const StudyResults = () => {
 
   const handleDownloadResults = async () => {
     await downloadQuizResult({
-      documentName: 'Quiz Results',
+      documentName: documentName || 'Quiz App',
       score: correctAnswers,
       total: totalQuestions,
       percentage,
@@ -118,14 +117,10 @@ const StudyResults = () => {
   };
 
   const handleRetakeQuiz = () => {
-    clearQuizData();
-    resetStudy();
     router.push(`/generated-quiz/${quizIdFromUrl}`);
   };
 
   const handleGoHome = () => {
-    clearQuizData();
-    resetStudy();
     router.push('/');
   };
 
@@ -177,13 +172,13 @@ const StudyResults = () => {
 
         {/* Action Buttons */}
         <div className='flex justify-center gap-2 md:gap-4'>
-          <button
+          {/* <button
             onClick={handleDownloadResults}
             className='flex items-center gap-2 px-6 py-3 text-sm md:text-base rounded-xl font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-shadow shadow-md hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-400 cursor-pointer'
           >
             <Download className='w-5 h-5' />
             Download Results
-          </button>
+          </button> */}
           <button
             onClick={() => setShowSummary(!showSummary)}
             className='flex items-center gap-2 px-6 py-3 text-sm md:text-base rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-500 to-primary-500 hover:from-primary-600 hover:to-indigo-700 transition-shadow shadow-md hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer'
@@ -193,27 +188,19 @@ const StudyResults = () => {
         </div>
 
         {/* Question Summary */}
-        {showSummary && fullQuestions && fullQuestions.length > 0 && (
+        {showSummary && questions && questions.length > 0 && (
           <div className='bg-white rounded-2xl shadow-lg md:p-8 space-y-6'>
             <h3 className='text-2xl font-bold text-gray-800 text-center'>
               Quiz Summary
             </h3>
             <div className='space-y-6'>
-              {fullQuestions.map((question, index) => {
-                // Find the corresponding result for this question
-                const questionResult = questions.find(
-                  (q) => q.questionId === question.id
-                );
-                const selectedOption = questionResult
-                  ? questionResult.selectedOptionIndex
-                  : null;
-                const isCorrect = questionResult
-                  ? questionResult.isCorrect
-                  : false;
+              {questions.map((questionResult, index) => {
+                const selectedOption = questionResult.selectedOptionIndex;
+                const isCorrect = questionResult.isCorrect;
 
                 return (
                   <div
-                    key={question.id}
+                    key={questionResult.id}
                     className={`border-2 rounded-xl p-6 ${
                       isCorrect
                         ? 'border-primary-200 bg-primary-50'
@@ -228,52 +215,56 @@ const StudyResults = () => {
                       )}
                       <div className='flex-1'>
                         <h4 className='font-semibold text-gray-800 mb-2'>
-                          Question {index + 1}: {question.question}
+                          Question {index + 1}: {questionResult.question}
                         </h4>
 
                         <div className='space-y-2 mb-4'>
-                          {question.options.map((option, optionIndex) => {
-                            const isSelected = selectedOption === optionIndex;
-                            const isCorrectAnswer =
-                              optionIndex === question.correctAnswer;
+                          {questionResult.options.map(
+                            (option: string, optionIndex: number) => {
+                              const isSelected = selectedOption === optionIndex;
+                              const isCorrectAnswer =
+                                optionIndex ===
+                                questionResult.correctAnswerIndex;
 
-                            let optionClass = 'px-4 py-2 rounded-lg border-2 ';
-                            if (isCorrectAnswer) {
-                              optionClass +=
-                                'bg-primary-100 border-primary-300 text-primary-800';
-                            } else if (isSelected && !isCorrectAnswer) {
-                              optionClass +=
-                                'bg-red-100 border-red-300 text-red-800';
-                            } else {
-                              optionClass +=
-                                'bg-gray-50 border-gray-200 text-gray-700';
-                            }
+                              let optionClass =
+                                'px-4 py-2 rounded-lg border-2 ';
+                              if (isCorrectAnswer) {
+                                optionClass +=
+                                  'bg-primary-100 border-primary-300 text-primary-800';
+                              } else if (isSelected && !isCorrectAnswer) {
+                                optionClass +=
+                                  'bg-red-100 border-red-300 text-red-800';
+                              } else {
+                                optionClass +=
+                                  'bg-gray-50 border-gray-200 text-gray-700';
+                              }
 
-                            return (
-                              <div key={optionIndex} className={optionClass}>
-                                <div className='flex items-center justify-between'>
-                                  <span>
-                                    <strong>
-                                      {String.fromCharCode(65 + optionIndex)}.
-                                    </strong>{' '}
-                                    {option}
-                                  </span>
-                                  <div className='flex gap-2'>
-                                    {isSelected && (
-                                      <span className='text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded'>
-                                        Your Answer
-                                      </span>
-                                    )}
-                                    {isCorrectAnswer && (
-                                      <span className='text-xs bg-primary-100 text-primary-800 px-2 py-1 rounded'>
-                                        Correct
-                                      </span>
-                                    )}
+                              return (
+                                <div key={optionIndex} className={optionClass}>
+                                  <div className='flex items-center justify-between'>
+                                    <span>
+                                      <strong>
+                                        {String.fromCharCode(65 + optionIndex)}.
+                                      </strong>{' '}
+                                      {option}
+                                    </span>
+                                    <div className='flex gap-2'>
+                                      {isSelected && (
+                                        <span className='text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded'>
+                                          Your Answer
+                                        </span>
+                                      )}
+                                      {isCorrectAnswer && (
+                                        <span className='text-xs bg-primary-100 text-primary-800 px-2 py-1 rounded'>
+                                          Correct
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            }
+                          )}
                         </div>
 
                         {selectedOption === null && (
@@ -284,13 +275,13 @@ const StudyResults = () => {
                           </div>
                         )}
 
-                        {question.explanation && (
+                        {questionResult.explanation && (
                           <div className='bg-gray-100 rounded-lg p-4'>
                             <h5 className='font-semibold text-gray-800 mb-2'>
                               Explanation:
                             </h5>
                             <p className='text-gray-700'>
-                              {question.explanation}
+                              {questionResult.explanation}
                             </p>
                           </div>
                         )}

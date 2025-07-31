@@ -18,6 +18,8 @@ interface ExamState {
   timeLimit: number;
   timeUnit: 'minutes' | 'hours';
   examStartTime: number | null;
+  examQuizId: string | null;
+  setExamQuizId: (id: string | null) => void;
   setCurrentPage: (page: number) => void;
   setExamSettings: (settings: {
     isTimedExam: boolean;
@@ -36,10 +38,13 @@ export const useExamStore = create<ExamState>()(
       selectedOptions: {},
       isCompleted: false,
       currentPage: 1,
-      isTimedExam: true,
+      isTimedExam: false,
       timeLimit: 10,
       timeUnit: 'minutes',
       examStartTime: null,
+      examQuizId: null,
+
+      setExamQuizId: (id) => set({ examQuizId: id }),
 
       setCurrentPage: (page) => set({ currentPage: page }),
 
@@ -62,10 +67,12 @@ export const useExamStore = create<ExamState>()(
         set({
           selectedOptions: {},
           isCompleted: false,
-          isTimedExam: true,
-          timeLimit: 30,
+          isTimedExam: false,
+          timeLimit: 0,
           timeUnit: 'minutes',
           examStartTime: null,
+          currentPage: 1,
+          examQuizId: null,
         }),
     }),
     {

@@ -7,6 +7,7 @@ import { useExamStore } from '@/app/store/useExamStore';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import ConfirmSubmitDialog from '@/app/components/dialogs/confirmSubmitDialog';
+import { showToast } from '@/app/utils/toast';
 
 const ExamMode = () => {
   const params = useParams();
@@ -26,8 +27,6 @@ const ExamMode = () => {
   } = useExamStore();
 
   const quizIdFromUrl = params?.id as string;
-  const [showError, setShowError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [examStarted, setExamStarted] = useState(false);
@@ -68,23 +67,6 @@ const ExamMode = () => {
     calculateTimeRemaining,
   ]);
 
-  // Timer countdown effect
-  useEffect(() => {
-    if (!isTimedExam || !examStarted || !examStartTime) return;
-
-    const timer = setInterval(() => {
-      const remaining = calculateTimeRemaining();
-      setTimeRemaining(remaining);
-
-      if (remaining <= 0) {
-        handleFinalSubmit();
-        clearInterval(timer);
-      }
-    }, 100);
-
-    return () => clearInterval(timer);
-  }, [isTimedExam, examStarted, examStartTime, calculateTimeRemaining]);
-
   // Format time display
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -116,24 +98,16 @@ const ExamMode = () => {
         setQuizData(quizId, documentName, questions);
       } else {
         setIsLoading(false);
-        setShowError(true);
-        setErrorMessage('Quiz not found');
+        showToast('Quiz not found.', 'error');
 
         setTimeout(() => {
-          setShowError(false);
           router.replace('/');
         }, 1500);
       }
     } catch (error) {
-      setShowError(true);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Quiz not found or failed to load.'
-      );
+      showToast('Quiz not found or failed to load.', 'error');
 
       setTimeout(() => {
-        setShowError(false);
         router.replace('/');
       }, 1500);
     } finally {
@@ -142,21 +116,19 @@ const ExamMode = () => {
   };
 
   useEffect(() => {
-    if (quizIdFromUrl && !questions?.length) {
+    if (quizIdFromUrl && !questions?.length && !isLoading) {
       fetchQuiz();
     } else if (quizIdFromUrl && quizId && quizIdFromUrl !== quizId) {
-      setErrorMessage('Unable to load quiz.');
-      setShowError(true);
+      showToast('Unable to load quiz.', 'error');
       setIsLoading(false);
 
       const timeout = setTimeout(() => {
-        setShowError(false);
         router.replace('/');
       }, 1500);
 
       return () => clearTimeout(timeout);
     }
-  }, [quizIdFromUrl, quizId, questions?.length, router]);
+  }, [quizIdFromUrl, quizId, questions?.length, router, isLoading]);
 
   const handleOptionClick = (optionIndex: number) => {
     setSelectedOption(currentPage, optionIndex);
@@ -170,11 +142,10 @@ const ExamMode = () => {
     const totalAnswered = Object.keys(selectedOptions).length;
 
     if (totalAnswered === 0) {
-      setErrorMessage('Please answer at least one question before submitting.');
-      setShowError(true);
-      setTimeout(() => {
-        setShowError(false);
-      }, 2000);
+      showToast(
+        'Please answer at least one question before submitting.',
+        'error'
+      );
       return;
     }
 
@@ -188,7 +159,7 @@ const ExamMode = () => {
     }
   };
 
-  const handleFinalSubmit = async () => {
+  const handleFinalSubmit = useCallback(async () => {
     setCompleted(true);
     setIsSubmitting(true);
 
@@ -230,19 +201,48 @@ const ExamMode = () => {
       router.push(`/generated-quiz/${quizIdFromUrl}/exam-results`);
     } catch (error) {
       console.log(error);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Failed to submit result. Please try again.'
-      );
-      setShowError(true);
+      showToast('Failed to submit result. Please try again.', 'error');
       setIsSubmitting(false);
-
-      setTimeout(() => {
-        setShowError(false);
-      }, 3000);
     }
-  };
+  }, [
+    selectedOptions,
+    quizIdFromUrl,
+    totalQuestions,
+    examStartTime,
+    router,
+    questions,
+    setCompleted,
+    setIsSubmitting,
+  ]);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (!isTimedExam || !examStarted || !examStartTime) return;
+
+    const timer = setInterval(() => {
+      const remaining = calculateTimeRemaining();
+      setTimeRemaining(remaining);
+
+      if (remaining <= 0) {
+        const totalAnswered = Object.keys(selectedOptions).length;
+
+        const unanswered = totalQuestions - totalAnswered;
+        setUnansweredCount(unanswered);
+        handleFinalSubmit();
+        clearInterval(timer);
+      }
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [
+    isTimedExam,
+    examStarted,
+    examStartTime,
+    calculateTimeRemaining,
+    handleFinalSubmit,
+    selectedOptions,
+    totalQuestions,
+  ]);
 
   const getOptionClass = (optionIndex: number) => {
     const selectedOption = selectedOptions[currentPage];
@@ -259,11 +259,7 @@ const ExamMode = () => {
 
   const totalAnswered = Object.keys(selectedOptions).length;
 
-  const getTimeWarningClass = () => {
-    return timeRemaining <= 60 ? 'text-red-500 animate-pulse' : 'text-red-500';
-  };
-
-  if (isLoading && !showError) {
+  if (isLoading) {
     return (
       <div className='min-h-screen flex items-center justify-center bg-white'>
         <div className='text-gray-500 text-lg font-semibold animate-pulse'>
@@ -276,14 +272,6 @@ const ExamMode = () => {
   return (
     <div className='min-h-screen bg-white px-4 md:py-12 relative'>
       <div className='max-w-4xl mx-auto space-y-8'>
-        {showError && (
-          <div className='fixed top-5 left-1/2 transform -translate-x-1/2 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl shadow-md z-50'>
-            <div className='font-semibold text-center'>
-              {errorMessage || 'Something went wrong. Please try again.'}
-            </div>
-          </div>
-        )}
-
         {!isLoading && currentQuestion && (
           <>
             <div className='mb-6'>
@@ -368,9 +356,15 @@ const ExamMode = () => {
               <button
                 onClick={handleSubmitExam}
                 disabled={isSubmitting}
-                className='px-8 py-4 bg-primary-500 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+                className={`px-8 py-4 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isSubmitting
+                    ? 'bg-primary-500 opacity-60 cursor-not-allowed'
+                    : 'bg-primary-500 hover:bg-primary-600 hover:-translate-y-0.5 shadow-lg hover:shadow-green-500/30'
+                }`}
               >
-                Submit Exam ({totalAnswered}/{totalQuestions})
+                {isSubmitting
+                  ? 'Submitting...'
+                  : `Submit Exam (${totalAnswered}/${totalQuestions})`}
               </button>
             </div>
           </>
@@ -378,14 +372,10 @@ const ExamMode = () => {
 
         {/* Floating Timer */}
         {!isLoading && currentQuestion && isTimedExam && (
-          <div className='absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-white border-2 border-gray-200 rounded-xl p-3 shadow-lg'>
+          <div className='absolute -top-4 md:top-4 right-1 md:left-1/2 transform -translate-x-1/2 z-50 bg-white border-2 border-gray-200 rounded-xl p-3 shadow-lg w-fit'>
             <div className='flex items-center gap-2'>
-              <Clock
-                className={`w-4 h-4 md:w-6 md:h-6 ${getTimeWarningClass()}`}
-              />
-              <div
-                className={`text-base md:text-2xl font-bold ${getTimeWarningClass()}`}
-              >
+              <Clock className='w-4 h-4 md:w-6 md:h-6 text-red-500' />
+              <div className='text-base md:text-2xl font-bold text-red-500'>
                 {formatTime(timeRemaining)}
               </div>
             </div>

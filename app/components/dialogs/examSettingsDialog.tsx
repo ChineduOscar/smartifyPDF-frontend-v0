@@ -219,13 +219,13 @@ const ExamSettingsModal: React.FC<ExamSettingsModalProps> = ({
         <div className='flex gap-3 w-full'>
           <button
             onClick={onClose}
-            className='flex-1 px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-colors text-xs md:text-base'
+            className='flex-1 px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-colors text-xs md:text-base cursor-pointer'
           >
             Cancel
           </button>
           <button
             onClick={handleStartExam}
-            className='flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-xs md:text-base'
+            className='flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-xs md:text-base cursor-pointer'
           >
             <ShieldCheck className='w-4 h-4' />
             Start Exam

@@ -7,6 +7,7 @@ import { useStudyStore } from '@/app/store/useStudyStore';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import ConfirmSubmitDialog from '@/app/components/dialogs/confirmSubmitDialog';
+import { showToast } from '@/app/utils/toast';
 
 const StudyMode = () => {
   const params = useParams();
@@ -21,10 +22,9 @@ const StudyMode = () => {
   } = useStudyStore();
 
   const quizIdFromUrl = params?.id as string;
-  const [showError, setShowError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [unansweredCount, setUnansweredCount] = useState(0);
 
   const currentQuestion = questions[currentPage - 1];
@@ -43,27 +43,21 @@ const StudyMode = () => {
           questions,
         } = data;
 
+        console.log(data)
+
         setQuizData(quizId, documentName, questions);
       } else {
         setIsLoading(false);
-        setShowError(true);
-        setErrorMessage('Quiz not found');
+        showToast('Quiz not found.', 'error');
 
         setTimeout(() => {
-          setShowError(false);
           router.replace('/');
         }, 1500);
       }
     } catch (error) {
-      setShowError(true);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Quiz not found or failed to load.'
-      );
+      showToast('Quiz not found or failed to load.', 'error');
 
       setTimeout(() => {
-        setShowError(false);
         router.replace('/');
       }, 1500);
     } finally {
@@ -72,21 +66,19 @@ const StudyMode = () => {
   };
 
   useEffect(() => {
-    if (quizIdFromUrl && !questions?.length) {
+    if (quizIdFromUrl && !questions?.length && !isLoading) {
       fetchQuiz();
     } else if (quizIdFromUrl && quizId && quizIdFromUrl !== quizId) {
-      setErrorMessage('Unable to load quiz.');
-      setShowError(true);
+      showToast('Unable to load quiz.', 'error');
       setIsLoading(false);
 
       const timeout = setTimeout(() => {
-        setShowError(false);
         router.replace('/');
       }, 1500);
 
       return () => clearTimeout(timeout);
     }
-  }, [quizIdFromUrl, quizId, questions?.length, router]);
+  }, [quizIdFromUrl, quizId, questions?.length, router, isLoading]);
 
   const handleOptionClick = (optionIndex: number) => {
     setSelectedOption(currentPage, optionIndex);
@@ -100,11 +92,10 @@ const StudyMode = () => {
     const totalAnswered = Object.keys(selectedOptions).length;
 
     if (totalAnswered === 0) {
-      setErrorMessage('Please answer at least one question before submitting.');
-      setShowError(true);
-      setTimeout(() => {
-        setShowError(false);
-      }, 2000);
+      showToast(
+        'Please answer at least one question before submitting.',
+        'error'
+      );
       return;
     }
 
@@ -119,6 +110,7 @@ const StudyMode = () => {
   };
 
   const handleFinalSubmit = async () => {
+    setIsSubmitting(true);
     setCompleted(true);
     const submissionPayload = {
       quizId: quizIdFromUrl,
@@ -151,12 +143,9 @@ const StudyMode = () => {
       }
       router.push(`/generated-quiz/${quizIdFromUrl}/study-results`);
     } catch (error) {
-      console.log(error);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Failed to submit result. Please try again.'
-      );
+      showToast('Failed to submit result. Please try again.', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -201,7 +190,7 @@ const StudyMode = () => {
   const hasAnswered = selectedOptions[currentPage] !== undefined;
   const totalAnswered = Object.keys(selectedOptions).length;
 
-  if (isLoading && !showError) {
+  if (isLoading) {
     return (
       <div className='min-h-screen flex items-center justify-center bg-white'>
         <div className='text-gray-500 text-lg font-semibold animate-pulse'>
@@ -214,14 +203,6 @@ const StudyMode = () => {
   return (
     <div className='min-h-screen bg-white px-4 md:py-12'>
       <div className='max-w-4xl mx-auto space-y-8'>
-        {showError && (
-          <div className='fixed top-5 left-1/2 transform -translate-x-1/2 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl shadow-md z-50'>
-            <div className='font-semibold text-center'>
-              {errorMessage || 'Something went wrong. Please try again.'}
-            </div>
-          </div>
-        )}
-
         {!isLoading && currentQuestion && (
           <>
             <div className='mb-6'>
@@ -320,9 +301,16 @@ const StudyMode = () => {
             <div className='text-center'>
               <button
                 onClick={handleSubmitExam}
-                className='px-8 py-4 bg-primary-500 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+                disabled={isSubmitting}
+                className={`px-8 py-4 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isSubmitting
+                    ? 'bg-primary-500 opacity-60 cursor-not-allowed'
+                    : 'bg-primary-500 hover:bg-primary-600 hover:-translate-y-0.5 shadow-lg hover:shadow-green-500/30'
+                }`}
               >
-                Submit Exam ({totalAnswered}/{totalQuestions})
+                {isSubmitting
+                  ? 'Submitting...'
+                  : `Submit Exam (${totalAnswered}/${totalQuestions})`}
               </button>
             </div>
           </>

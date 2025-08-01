@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuizStore } from '../../../store/useQuizStore';
 import { useStudyStore } from '@/app/store/useStudyStore';
 import { CheckCircle, X, Trophy, RotateCcw, Home } from 'lucide-react';
-import { downloadQuizResult } from '@/app/utils/downloadQuizResult';
+import { showToast } from '@/app/utils/toast';
 
 const StudyResults = () => {
   const params = useParams();
@@ -43,7 +43,11 @@ const StudyResults = () => {
         const resultRes = await fetch(
           `http://localhost:3333/quiz/${quizIdFromUrl}/results?mode=study`
         );
-        if (!resultRes.ok) throw new Error('Failed to fetch result');
+        if (!resultRes.ok)
+          showToast(
+            'Failed to fetch result. Please refresh and try again.',
+            'error'
+          );
         const data = await resultRes.json();
 
         setResultData({

@@ -14,6 +14,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { downloadQuizResult } from '@/app/utils/downloadQuizResult';
+import { showToast } from '@/app/utils/toast';
 
 const ExamResults = () => {
   const params = useParams();
@@ -53,7 +54,11 @@ const ExamResults = () => {
         const resultRes = await fetch(
           `http://localhost:3333/quiz/${quizIdFromUrl}/results?mode=exam`
         );
-        if (!resultRes.ok) throw new Error('Failed to fetch result');
+        if (!resultRes.ok)
+          showToast(
+            'Failed to fetch result. Please refresh and try again.',
+            'error'
+          );
         const data = await resultRes.json();
 
         console.log('Exam Result Data:', data);

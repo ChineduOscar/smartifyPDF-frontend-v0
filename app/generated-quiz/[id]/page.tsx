@@ -21,6 +21,7 @@ import ExamSettingsModal, {
   ExamSettings,
 } from '@/app/components/dialogs/examSettingsDialog';
 import { useStudyStore } from '@/app/store/useStudyStore';
+import { showToast } from '@/app/utils/toast';
 
 const GeneratedQuiz = () => {
   const router = useRouter();
@@ -32,11 +33,9 @@ const GeneratedQuiz = () => {
   const { examQuizId, setExamQuizId } = useExamStore();
   const { studyQuizId, setStudyQuizId } = useStudyStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [showError, setShowError] = useState(false);
   const [examModalOpen, setExamModalOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-  const [errorMessage, setErrorMessage] = useState('');
 
   const fetchQuiz = async () => {
     setIsLoading(true);
@@ -55,26 +54,10 @@ const GeneratedQuiz = () => {
         setQuizData(quizId, documentName, questions);
       } else {
         setIsLoading(false);
-        setShowError(true);
-        setErrorMessage('Quiz not found');
-
-        setTimeout(() => {
-          setShowError(false);
-          router.replace('/');
-        }, 1500);
+        showToast('Quiz not found', 'error');
       }
     } catch (error) {
-      setShowError(true);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Quiz not found or failed to load.'
-      );
-
-      setTimeout(() => {
-        setShowError(false);
-        router.replace('/');
-      }, 1500);
+      showToast('Quiz not found or failed to load', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -93,21 +76,8 @@ const GeneratedQuiz = () => {
   }, []);
 
   useEffect(() => {
-    if (quizIdFromUrl && !questions?.length) {
-      fetchQuiz();
-    } else if (quizIdFromUrl && quizId && quizIdFromUrl !== quizId) {
-      setErrorMessage('Unable to load quiz.');
-      setShowError(true);
-      setIsLoading(false);
-
-      const timeout = setTimeout(() => {
-        setShowError(false);
-        router.replace('/');
-      }, 1500);
-
-      return () => clearTimeout(timeout);
-    }
-  }, [quizIdFromUrl, quizId, questions?.length, router]);
+    fetchQuiz();
+  }, []);
 
   const handleDownloadClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -125,14 +95,14 @@ const GeneratedQuiz = () => {
   };
 
   const handleExamModeClick = () => {
+    console.log(examQuizId, quizId);
     if (examQuizId === quizId) {
-      setErrorMessage('You already have an ongoing exam for this quiz.');
-      setShowError(true);
+      showToast('You already have an ongoing exam for this quiz', 'error');
 
       setTimeout(() => {
-        setShowError(false);
-        setErrorMessage('');
-      }, 3000);
+        router.push(`/exam-mode/${quizId}`);
+      }, 2000);
+
       return;
     }
 
@@ -147,29 +117,28 @@ const GeneratedQuiz = () => {
       timeLimit: settings.timeLimit,
       timeUnit: settings.timeUnit,
     });
-    window.open(`/exam-mode/${quizId}`);
+    router.push(`/exam-mode/${quizId}`);
   };
 
   const handleStudyStart = () => {
     if (studyQuizId === quizId) {
-      setErrorMessage('You already have an ongoing study for this quiz.');
-      setShowError(true);
+      showToast('You already have an ongoing study for this quiz.', 'error');
 
       setTimeout(() => {
-        setShowError(false);
-        setErrorMessage('');
-      }, 3000);
+        router.push(`/study-mode/${quizId}`);
+      }, 2000);
+
       return;
     }
     setStudyQuizId(quizId);
-    window.open(`/study-mode/${quizId}`, '_blank');
+    router.push(`/study-mode/${quizId}`);
   };
 
   const handleCloseExamModal = () => {
     setExamModalOpen(false);
   };
 
-  if (isLoading && !showError) {
+  if (isLoading) {
     return (
       <div className='min-h-screen flex items-center justify-center bg-white'>
         <div className='text-gray-500 text-lg font-semibold animate-pulse'>
@@ -182,13 +151,6 @@ const GeneratedQuiz = () => {
   return (
     <div className='min-h-screen bg-white flex justify-center px-4 md:py-32'>
       <div className='w-full max-w-4xl space-y-10'>
-        {showError && (
-          <div className='bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl'>
-            <div className='font-semibold'>
-              {errorMessage || 'Something went wrong. Please try again.'}
-            </div>
-          </div>
-        )}
         {!isLoading && questions && (
           <>
             <div className='flex items-center justify-center'>

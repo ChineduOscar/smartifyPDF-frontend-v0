@@ -85,6 +85,7 @@ export const useExamStore = create<ExamState>()(
         timeLimit: state.timeLimit,
         timeUnit: state.timeUnit,
         examStartTime: state.examStartTime,
+        examQuizId: state.examQuizId,
       }),
     }
   )

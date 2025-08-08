@@ -1,8 +1,10 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Upload, FileText, User, Crown, PanelLeft } from 'lucide-react';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { useQuizStore } from '../store/useQuizStore';
+import logo from '@/app/assets/logo.png';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -99,16 +101,18 @@ const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           <div
-            className={`flex items-center gap-3 ${
+            className={`flex items-center gap-2 ${
               !isOpen ? 'justify-center w-full' : ''
             }`}
           >
-            <div
-              className='w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg flex items-center justify-center cursor-pointer'
-              onClick={handleToggle}
-              aria-label='Toggle Sidebar'
-            >
-              <span className='text-white font-bold text-sm'>S</span>
+            <div onClick={handleToggle} aria-label='Toggle Sidebar'>
+              <Image
+                src={logo}
+                alt='smartifyPDF'
+                width={100}
+                height={100}
+                className='w-8 h-10'
+              />
             </div>
             {isOpen && (
               <h1 className='text-xl font-bold text-gray-800'>SmartifyPDF</h1>

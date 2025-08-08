@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import Sidebar from './common/sidemenu';
-import SmSidebar from './common/smSidemenu';
-import Footer from './common/footer';
+import Sidebar from '../common/sidemenu';
+import SmSidebar from '../common/smSidemenu';
+import Footer from '../common/footer';
 
 const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);

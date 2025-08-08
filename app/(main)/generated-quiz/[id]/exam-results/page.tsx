@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useQuizStore } from '../../../store/useQuizStore';
+import { useQuizStore } from '../../../../store/useQuizStore';
 import { useExamStore } from '@/app/store/useExamStore';
 import {
   CheckCircle,

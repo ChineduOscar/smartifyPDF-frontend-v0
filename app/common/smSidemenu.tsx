@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
+import logo from '@/app/assets/logo.png';
 import { Upload, User, Crown, Menu, X, FileText } from 'lucide-react';
 import { usePathname, useParams, useRouter } from 'next/navigation';
 import { useQuizStore } from '../store/useQuizStore';
@@ -86,10 +88,16 @@ const SmSidebar: React.FC = () => {
         }`}
       >
         {/* Header */}
-        <div className='flex items-center justify-between p-4 border-b'>
+        <div className='flex items-center justify-between p-4 border-b border-gray-200'>
           <div className='flex items-center gap-2'>
-            <div className='w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg flex items-center justify-center'>
-              <span className='text-white font-bold text-sm'>S</span>
+            <div>
+              <Image
+                src={logo}
+                alt='smartifyPDF'
+                width={100}
+                height={100}
+                className='w-6 h-7'
+              />
             </div>
             <h1 className='text-lg font-bold text-gray-800'>SmartifyPDF</h1>
           </div>
@@ -99,7 +107,7 @@ const SmSidebar: React.FC = () => {
         </div>
 
         {/* Menu Content */}
-        <div className='flex-1 overflow-y-auto p-4'>
+        <div className='flex-1 overflow-y-auto p-4 border-b border-gray-100'>
           {/* Upload */}
           <div className='mb-6'>
             <div
@@ -146,7 +154,7 @@ const SmSidebar: React.FC = () => {
         </div>
 
         {/* Bottom Menu */}
-        <div className='border-t border-gray-200 p-4 space-y-2'>
+        <div className='border-t border-gray-100 p-4 space-y-2'>
           <div className='flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg'>
             <div className='w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center'>
               <User className='w-4 h-4 text-white' />

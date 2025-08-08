@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Clock, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useQuizStore } from '../../store/useQuizStore';
+import { useQuizStore } from '../../../store/useQuizStore';
 import { useExamStore } from '@/app/store/useExamStore';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';

@@ -27,7 +27,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "app/page.jsx"
-, "app/common/sidemenu.tsx"  ],
+    "app/page.jsx",
+    "app/common/sidemenu.tsx"
+  ],
   "exclude": ["node_modules"]
 }

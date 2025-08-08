@@ -1,9 +1,9 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, File, Minus, Plus } from 'lucide-react';
-import { useQuizStore } from './store/useQuizStore';
+import { useQuizStore } from '../store/useQuizStore';
 import { useRouter } from 'next/navigation';
-import { showToast } from './utils/toast';
+import { showToast } from '../utils/toast';
 
 interface QuizSettings {
   questionCount: number;
@@ -127,9 +127,9 @@ const SmartifyHomePage: React.FC = () => {
 
   const difficultyOptions = [
     { key: 'auto', title: 'Auto (Smart Mix)' },
-    { key: 'beginner', title: 'Beginner' },
-    { key: 'intermediate', title: 'Intermediate' },
-    { key: 'advanced', title: 'Advanced' },
+    { key: 'easy', title: 'Easy' },
+    { key: 'medium', title: 'Medium' },
+    { key: 'hard', title: 'Hard' },
   ];
 
   const getReadableSize = (size: number) => {

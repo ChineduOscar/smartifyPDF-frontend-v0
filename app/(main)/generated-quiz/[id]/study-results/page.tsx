@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useQuizStore } from '../../../store/useQuizStore';
+import { useQuizStore } from '../../../../store/useQuizStore';
 import { useStudyStore } from '@/app/store/useStudyStore';
 import { CheckCircle, X, Trophy, RotateCcw, Home } from 'lucide-react';
 import { showToast } from '@/app/utils/toast';

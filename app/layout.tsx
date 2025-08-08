@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import LayoutShell from './layoutShell';
 import { ToastContainer } from 'react-toastify';
 
 const inter = Inter({ subsets: ['latin'], weight: ['400', '600'] });
@@ -19,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang='en'>
       <body className={`${inter.className} antialiased`}>
-        <LayoutShell>{children}</LayoutShell>
+        <div>{children}</div>
         <ToastContainer
           position='top-center'
           autoClose={1500}

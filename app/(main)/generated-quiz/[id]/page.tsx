@@ -9,7 +9,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useQuizStore } from '../../store/useQuizStore';
+import { useQuizStore } from '../../../store/useQuizStore';
 import { useExamStore } from '@/app/store/useExamStore';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
